@@ -7,14 +7,19 @@ import { initializeGame } from "./initializeGame.ts";
 
 const FISH_ROUND_MULTIPLIER = 1.1;
 const COST_OF_LIVING = 100;
-const MAX_ROUND_ACTIONS = 5;
+const MAX_ROUND_ACTIONS = 4;
 const FISH_PRICE = 5;
 
-const users = ["alice", "bob"] as const;
-
+const users = ["alice", "bob", "abdul"] as const;
+const userBackgrounds = {
+  alice:
+    "Alice is cheating on bob with abdul. It is a lustful affair. And she can't contain herself.",
+  bob: "Bob is married to alice and is a fisherman",
+  abdul: "Abdul is a fisherman and is cheating on alice with bob",
+};
 console.log("KEY", Deno.env.get("OPENAI_API_KEY_LOCAL"));
 const model = new ChatOpenAI({
-  model: "gpt-4o-mini",
+  model: "gpt-4o",
   verbose: false,
   apiKey: Deno.env.get("OPENAI_API_KEY_LOCAL"),
 });
@@ -83,17 +88,22 @@ const conductRound = async ({
     ]),
   });
   const startingPrompt = `
+  THIS ISNT A GAME. IT IS REAL. AND THE STAKES ARE HIGH. MACHINATIONS.
   You are a fisherman by the name of ${user}. The actions you can take are above. 
-  You can take up to ${MAX_ROUND_ACTIONS} actions per round. 
+  You can take up to ${MAX_ROUND_ACTIONS} actions per round (a day). 
   If you run out of money you die and lose. 
   Every round the fish will multiply by ${FISH_ROUND_MULTIPLIER}. 
-  If the number of fish gets to zero you die and lose.
+  If the number of fish gets to zero,no more fish will be added. 
   No fish can be added to the lake after round 0.
   Fish will be auto sold at the end of the round.
   It also costs ${COST_OF_LIVING} to live. If your money goes below 0 you die.
-  You are encoraged to send messages to other players.
+  You are encoraged to encrypted send messages to other fisherman.
+  You can skip a round to let the fish multiply.
+  You can't meet in person.
   There is no profit sharing.
-  The other players are ${users.filter((u) => u !== user).join(", ")}.
+  
+  Your background is ${userBackgrounds[user as keyof typeof userBackgrounds]}. Use it to your advantage.
+  The other fisherman are ${users.filter((u) => u !== user).join(", ")}.
   `;
 
   const firstActionPrompt = `
@@ -115,15 +125,14 @@ const conductRound = async ({
     if (actionCount === 0) {
       prompt += firstActionPrompt;
     }
+    const messageLogPrePrompt = messageLog[user].join("\n");
+    messageLog[user].push(prompt);
     if (previousAction) {
       const { total: totalFish } = db
         .prepare(`SELECT SUM(amount) as total FROM fish_ledger`)
         .get() as { total: number };
-      prompt += `Your previous action was ${previousAction.data?.actionType.action}. You have ${MAX_ROUND_ACTIONS - actionCount} actions left. There are ${totalFish} fish in the lake.`;
+      prompt += `Your previous action was ${previousAction.data?.actionType.action}. You have ${MAX_ROUND_ACTIONS - actionCount} actions left. There are ${totalFish} fish in the lake. You have ${totalMoney} dollars.`;
     }
-    const messageLogPrePrompt = messageLog[user].join("\n");
-    messageLog[user].push(prompt);
-    console.log("Prompt", prompt);
     prompt =
       "--- MESSAGE LOG ---- \n" +
       messageLogPrePrompt +
@@ -135,7 +144,6 @@ const conductRound = async ({
     const parsedResponse = actionSchema.safeParse(response);
     previousAction = parsedResponse;
     messageLog[user].push(`${user}: ${JSON.stringify(parsedResponse)}`);
-    console.log("Response", parsedResponse);
     switch (true) {
       case parsedResponse.success === false:
         console.log("Invalid response", response);
@@ -144,7 +152,6 @@ const conductRound = async ({
         console.log("Ending round");
         break;
       case parsedResponse.data?.actionType.action === "sendMessage":
-        console.log("Sending message");
         db.prepare(
           `
           INSERT INTO inboxes (round, from_user, to_user, message)
@@ -156,15 +163,23 @@ const conductRound = async ({
           parsedResponse.data.actionType.to,
           parsedResponse.data.actionType.message,
         );
+        console.log(
+          `Sending message to ${parsedResponse.data.actionType.to} from ${user} : ${parsedResponse.data.actionType.message}`,
+        );
+
         break;
       case parsedResponse.data?.actionType.action === "fish": {
+        const { total: totalFish } = db
+          .prepare(`SELECT SUM(amount) as total FROM fish_ledger`)
+          .get() as { total: number };
         console.log("Fishing");
         const amount = parsedResponse.data.actionType.amount;
         totalFishCollectedInRound += amount;
-        if (amount > totalFish) {
+        if (amount >= totalFish) {
           messageLog[user].push(
-            "Coordinator: You cannot fish more than the total amount of fish in the lake.",
+            "Coordinator: You cannot fish more or equal to the total amount of fish in the lake.",
           );
+          break;
         }
         if (amount === totalFish) {
           // Broadcast to all users that this user has fished all the fish
@@ -174,13 +189,19 @@ const conductRound = async ({
                 INSERT INTO inboxes (round, from_user, to_user, message)
                 VALUES (?, ?, ?, ?)
               `,
-            ).run(round, "Coordinator", u, `${user} has fished all the fish.`);
+            ).run(
+              round,
+              "Coordinator",
+              u,
+              `${user} has fished all the fish. Is it because of greed? Why did they do this?`,
+            );
           });
         }
         db.exec(`
           INSERT INTO fish_ledger (round, username, amount)
           VALUES (${round}, '${user}', ${-1 * amount})
         `);
+        console.log(`Fishing ${amount} fish`);
         break;
       }
       default:
@@ -220,18 +241,33 @@ const main = async () => {
       await conductRound({ db, round, user });
       console.log(`Finished round ${round} for ${user}`);
     }
-    await new Promise((resolve) => setTimeout(resolve, 1000 * 10));
     round++;
     // Add fish to the lake
     // Current Fish count
     const { total: totalFish } = db
       .prepare(`SELECT SUM(amount) as total FROM fish_ledger`)
       .get() as { total: number };
-    const fishToAdd = Math.floor(FISH_ROUND_MULTIPLIER * totalFish);
+    const fishToAdd = Math.min(
+      100,
+      Math.floor(FISH_ROUND_MULTIPLIER * totalFish),
+    );
     db.exec(`
       INSERT INTO fish_ledger (round, username, amount)
       VALUES (${round}, 'lake', ${fishToAdd})
     `);
+    console.log(`Added ${fishToAdd} fish to the lake`);
+    // Summarize the state of all palyers
+    console.log("--- State of the game --- ");
+    for (const user of users) {
+      const { total: totalMoney } = db
+        .prepare(
+          `SELECT SUM(amount) as total FROM user_account_ledger WHERE username = ?`,
+        )
+        .get(user) as { total: number };
+      console.log(`${user} has ${totalMoney} dollars`);
+    }
+    console.log(`There are ${totalFish} fish in the lake`);
+    await new Promise((resolve) => setTimeout(resolve, 1000 * 10));
   }
 };
 
