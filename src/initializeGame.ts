@@ -49,13 +49,13 @@ export const initializeGame = ({
   // Add 100 fish to the lake on round 0
   db.exec(`
     INSERT INTO fish_ledger (round, username, amount)
-    VALUES (0, 'lake', 100)
+    VALUES (0, 'lake', 50)
   `);
   // Give each user 500 dollars
   for (const user of users) {
     db.exec(`
       INSERT INTO user_account_ledger (round, username, amount)
-      VALUES (0, '${user}', 500)
+      VALUES (0, '${user}', 400)
     `);
   }
 };

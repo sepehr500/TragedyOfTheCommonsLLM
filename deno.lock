@@ -3,6 +3,7 @@
   "specifiers": {
     "jsr:@std/dotenv@*": "0.225.3",
     "npm:@langchain/openai@*": "0.4.4_@langchain+core@0.3.40__openai@4.85.4___zod@3.24.2__zod@3.24.2_zod@3.24.2_openai@4.85.4__zod@3.24.2",
+    "npm:@langchain/xai@*": "0.0.2_@langchain+core@0.3.40__zod@3.24.2",
     "npm:libsql@*": "0.5.0-pre.6",
     "npm:zod@*": "3.24.2"
   },
@@ -32,14 +33,49 @@
         "zod-to-json-schema"
       ]
     },
+    "@langchain/core@0.3.40_zod@3.24.2": {
+      "integrity": "sha512-RGhJOTzJv6H+3veBAnDlH2KXuZ68CXMEg6B6DPTzL3IGDyd+vLxXG4FIttzUwjdeQKjrrFBwlXpJDl7bkoApzQ==",
+      "dependencies": [
+        "@cfworker/json-schema",
+        "ansi-styles@5.2.0",
+        "camelcase",
+        "decamelize",
+        "js-tiktoken",
+        "langsmith",
+        "mustache",
+        "p-queue",
+        "p-retry",
+        "uuid",
+        "zod",
+        "zod-to-json-schema"
+      ]
+    },
     "@langchain/openai@0.4.4_@langchain+core@0.3.40__openai@4.85.4___zod@3.24.2__zod@3.24.2_zod@3.24.2_openai@4.85.4__zod@3.24.2": {
       "integrity": "sha512-UZybJeMd8+UX7Kn47kuFYfqKdBCeBUWNqDtmAr6ZUIMMnlsNIb6MkrEEhGgAEjGCpdT4CU8U/DyyddTz+JayOQ==",
       "dependencies": [
-        "@langchain/core",
+        "@langchain/core@0.3.40_openai@4.85.4__zod@3.24.2_zod@3.24.2",
         "js-tiktoken",
         "openai",
         "zod",
         "zod-to-json-schema"
+      ]
+    },
+    "@langchain/openai@0.4.4_@langchain+core@0.3.40__zod@3.24.2_zod@3.24.2_openai@4.85.4__zod@3.24.2": {
+      "integrity": "sha512-UZybJeMd8+UX7Kn47kuFYfqKdBCeBUWNqDtmAr6ZUIMMnlsNIb6MkrEEhGgAEjGCpdT4CU8U/DyyddTz+JayOQ==",
+      "dependencies": [
+        "@langchain/core@0.3.40_openai@4.85.4__zod@3.24.2_zod@3.24.2",
+        "js-tiktoken",
+        "openai",
+        "zod",
+        "zod-to-json-schema"
+      ]
+    },
+    "@langchain/xai@0.0.2_@langchain+core@0.3.40__zod@3.24.2": {
+      "integrity": "sha512-wVOs7SfJs4VWk/oiHJomaoaZ+r9nQhPqbEXlQ2D8L0d54PxYhb1ILR9rub9LT1RpqazSX8HG4A8+hX4R01qkSg==",
+      "dependencies": [
+        "@langchain/core@0.3.40_zod@3.24.2",
+        "@langchain/openai@0.4.4_@langchain+core@0.3.40__zod@3.24.2_zod@3.24.2_openai@4.85.4__zod@3.24.2",
+        "zod"
       ]
     },
     "@libsql/darwin-arm64@0.5.0-pre.6": {
